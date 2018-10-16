@@ -1,0 +1,48 @@
+static flt_eps = 1.1920928955e-07f;
+static flt_max = 3.4028234664e+38f;
+static flt_min = 1.1754943508e-38f;
+static flt_pi = 3.14159265359f;
+static flt_sqrt2 = 1.41421356237f;
+static flt_sqrt3 = 1.73205080757f;
+
+extern "device" {
+    fn "llvm.expect.i1" expect(bool, bool) -> bool;
+}
+
+fn @  likely(cond: bool) -> bool { expect(cond,  true) }
+fn @unlikely(cond: bool) -> bool { expect(cond, false) }
+
+fn @(?a & ?b) range_step(a: int, b: int, @ c: int, @ body: fn (int) -> ()) -> () {
+    if a < b {
+        body(a);
+        range_step(a + c, b, c, body, return)
+    }
+}
+
+fn @range(a: int, b: int, body: fn (int) -> ()) -> () {
+    range_step(a, b, 1, body);
+}
+
+fn @prodsign(x: float, y: float) -> float {
+    bitcast[float](bitcast[int](x) ^ (bitcast[int](y) & bitcast[int](0x80000000u)))
+}
+
+fn safe_rcp(x: float) -> float {
+    let min_rcp = 1e-8f;
+    if select(x > 0.0f, x, -x) < min_rcp { prodsign(min_rcp, x) } else { 1.0f / x }
+}
+
+fn @ilog2(i: int) -> int {
+    fn @(?i) ilog2_helper(i: int, p: int) -> int {
+        if i <= 1 {
+            p
+        } else {
+            ilog2_helper(i / 2, p + 1)
+        }
+    }
+    ilog2_helper(i, 0)
+}
+
+fn @lerp(a: float, b: float, k: float) -> float {
+    (1.0f - k) * a + k * b
+}
